@@ -58,13 +58,12 @@ class Download(object):
         seconds = (date - GPST0).total_seconds()
         week = int(seconds / 86400 / 7)
         weekday = int(seconds % (86400 * 7) / 86400)
+        session.cwd('%d' % week)
 
         if sp3 == 'yes':
-            session.cwd('%d' % week)
             product = '%s%s%s.sp3.Z' % (product, week, weekday)
             self.__download(session, product, dest)
         if clk == 'yes':
-            session.cwd('%d' % week)
             product = '%s%s%s.clk.Z' % (product, week, weekday)
             self.__download(session, product, dest)
         session.quit()
