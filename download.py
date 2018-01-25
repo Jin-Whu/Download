@@ -61,11 +61,11 @@ class Download(object):
         session.cwd('%d' % week)
 
         if sp3 == 'yes':
-            product = '%s%s%s.sp3.Z' % (product, week, weekday)
-            self.__download(session, product, dest)
+            sp3product = '%s%s%s.sp3.Z' % (product, week, weekday)
+            self.__download(session, sp3product, dest)
         if clk == 'yes':
-            product = '%s%s%s.clk.Z' % (product, week, weekday)
-            self.__download(session, product, dest)
+            clkproduct = '%s%s%s.clk.Z' % (product, week, weekday)
+            self.__download(session, clkproduct, dest)
         session.quit()
 
     def __download(self, session, filename, dest):
