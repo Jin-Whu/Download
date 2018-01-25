@@ -40,8 +40,6 @@ class Download(object):
         ftp = cfg['ftp']
         sp3 = cfg['sp3']
         clk = cfg['clk']
-        days = int(cfg['days'])
-        dest = cfg['dest']
 
         # parse ftp
         ftpscheme = urlparse.urlparse(ftp)
@@ -53,19 +51,22 @@ class Download(object):
         session.login()
         session.cwd(path)
 
-        # gps week and weekday
-        date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
-        seconds = (date - GPST0).total_seconds()
-        week = int(seconds / 86400 / 7)
-        weekday = int(seconds % (86400 * 7) / 86400)
-        session.cwd('%d' % week)
-
         if sp3 == 'yes':
+            days = cfg['sp3days']
+            dest = cfg['sp3d']
+            week, weekday = self.__getweek(days)
             sp3product = '%s%s%s.sp3.Z' % (product, week, weekday)
+            session.cwd('%s' % week)
             self.__download(session, sp3product, dest)
+            session.cwd('..')
         if clk == 'yes':
+            days = cfg['clkdays']
+            dest = cfg['clkd']
+            week, weekday = self.__getweek(days)
             clkproduct = '%s%s%s.clk.Z' % (product, week, weekday)
+            session.cwd('%s' % week)
             self.__download(session, clkproduct, dest)
+            session.cwd('..')
         session.quit()
 
     def __download(self, session, filename, dest):
@@ -83,6 +84,15 @@ class Download(object):
             uncompressed_data = unlzw.unlzw(compressed_data)
             with open(destpath, 'w') as fw:
                 fw.write(uncompressed_data)
+
+    def __getweek(self, days):
+        """Get gps week and weekday."""
+        # gps week and weekday
+        date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+        seconds = (date - GPST0).total_seconds()
+        week = int(seconds / 86400 / 7)
+        weekday = int(seconds % (86400 * 7) / 86400)
+        return week, weekday
 
 
 def process():
