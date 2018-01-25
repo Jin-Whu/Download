@@ -52,7 +52,7 @@ class Download(object):
         session.cwd(path)
 
         if sp3 == 'yes':
-            days = cfg['sp3days']
+            days = int(cfg['sp3days'])
             dest = cfg['sp3d']
             week, weekday = self.__getweek(days)
             sp3product = '%s%s%s.sp3.Z' % (product, week, weekday)
@@ -60,7 +60,7 @@ class Download(object):
             self.__download(session, sp3product, dest)
             session.cwd('..')
         if clk == 'yes':
-            days = cfg['clkdays']
+            days = int(cfg['clkdays'])
             dest = cfg['clkd']
             week, weekday = self.__getweek(days)
             clkproduct = '%s%s%s.clk.Z' % (product, week, weekday)
