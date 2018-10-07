@@ -126,14 +126,11 @@ class DownloadFTP(object):
             session.cwd('%s' % date.year)
             product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (date.year, date.timetuple().tm_yday)
             self.__download_file(session, product_name, dest)
-            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, False)
-            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''),
-                                                os.path.split(dest)[0], True)
+            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, True)
             for i in ['C1', 'P2', 'P3']:
-                old_file = os.path.join(os.path.split(dest)[0],
-                                        'P1%s%02d%02d%02d.DCB' % (i, date.year % 100, date.month, date.day))
+                old_file = os.path.join(dest,'P1%s%02d%02d%02d.DCB' % (i, date.year % 100, date.month, date.day))
                 new_file = os.path.join(os.path.split(dest)[0], 'P1%s%02d%02d.DCB' % (i, date.year % 100, date.month))
-                os.rename(old_file, new_file)
+                copy_file(old_file, new_file)
         elif product == 'brdm':
             dest = os.path.join(dest, '%d' % date.year)
             if not os.path.isdir(dest):
