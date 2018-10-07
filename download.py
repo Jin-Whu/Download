@@ -1,106 +1,155 @@
 #!/usr/bin/env python
 # coding:utf-8
-
-
+import configparser
 import os
 from ftplib import FTP
-import urlparse
+from urllib import parse
 import datetime
-import configparser
 import unlzw
+import gzip
+import extractDCBFromSNX
 
 GPST0 = datetime.datetime(1980, 1, 6, 0, 0, 0)
 
 
-class Download(object):
-    def __init__(self):
-        self.config = configparser.ConfigParser()
+def get_gps_weekday(date):
+    seconds = (date - GPST0).total_seconds()
+    week = int(seconds / 86400 / 7)
+    weekday = int(seconds % (86400 * 7) / 86400)
+    return week, weekday
 
-    def init(self):
-        """Init download.
 
-        Read configure.ini and initialize donwloader.
+def uncompress(file_path, dest_path='', is_delete=False):
+    """Uncompress file."""
+    if file_path.endswith('.gz'):
+        if dest_path == '':
+            dest_path = file_path.replace('.gz', '')
+        g_file = gzip.GzipFile(file_path)
+        uncompressed_data = g_file.read()
+        g_file.close()
+    elif file_path.endswith('.Z'):
+        if dest_path == '':
+            dest_path = file_path.replace('.Z', '')
+        with open(file_path, 'rb') as f:
+            compressed_data = f.read()
+            uncompressed_data = unlzw.unlzw(compressed_data)
+    with open(dest_path, 'w') as fw:
+        fw.write(uncompressed_data.decode(encoding="utf-8"))
+    if is_delete:
+        os.remove(file_path)
 
-        Returns:
-            flag: True or False.
-        """
-        cfgpath = os.path.join(os.path.dirname(__file__), 'configure.ini')
-        if not os.path.join(cfgpath):
-            return False
-        self.config.read(cfgpath)
-        return True
+
+class DownloadFTP(object):
+    def __init__(self, config_path):
+        try:
+            f = open(config_path)
+            f.close()
+        except IOError:
+            print("File is not accessible.")
+            exit()
+
+        self.config_path = config_path
+        self.__config = configparser.ConfigParser()
+        self.__config.read(self.config_path)
 
     def download(self):
         """Download."""
-        for prodcut in self.config.sections():
-            self.__downloadproduct(prodcut)
+        for prodcut in self.__config.sections():
+            self.__download_product(prodcut)
 
-    def __downloadproduct(self, product):
-        cfg = self.config[product]
+    def __download_product(self, product):
+        cfg = self.__config[product]
+        flag = bool(int(cfg['download']))
+        if flag is False:
+            return
+        print('%s downloading...' % product)
         ftp = cfg['ftp']
-        sp3 = cfg['sp3']
-        clk = cfg['clk']
+        date = datetime.datetime.strptime(cfg['date'], '%Y%m%d')
+        dest = cfg['dir']
 
         # parse ftp
-        ftpscheme = urlparse.urlparse(ftp)
-        host = ftpscheme.netloc
-        path = ftpscheme.path
+        ftp_scheme = parse.urlparse(ftp)
+        host = ftp_scheme.netloc
+        path = ftp_scheme.path
 
         # ftp session
-        session = FTP(host)
+        session = FTP(host, timeout=120)
+        # session.set_debuglevel(1)
+        # session.set_pasv(False)
         session.login()
         session.cwd(path)
 
-        if sp3 == 'yes':
-            days = int(cfg['sp3days'])
-            dest = cfg['sp3d']
-            week, weekday = self.__getweek(days)
-            sp3product = '%s%s%s.sp3.Z' % (product, week, weekday)
+        if product == 'sp3' or product == 'clk':
+            dest = os.path.join(dest, '%d' % date.year)
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            week, weekday = get_gps_weekday(date)
+            product_name = 'gbm%s%s.%s.Z' % (week, weekday, product)
             session.cwd('%s' % week)
-            self.__download(session, sp3product, dest)
-            session.cwd('..')
-        if clk == 'yes':
-            days = int(cfg['clkdays'])
-            dest = cfg['clkd']
-            week, weekday = self.__getweek(days)
-            clkproduct = '%s%s%s.clk.Z' % (product, week, weekday)
-            session.cwd('%s' % week)
-            self.__download(session, clkproduct, dest)
-            session.cwd('..')
+            self.__download_file(session, product_name, dest)
+        elif product == 'CODG':
+            dest = os.path.join(dest, '%d' % date.year)
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            session.cwd('%s' % date.year)
+            product_name = '%s%03d0.%02dI.Z' % (product, date.timetuple().tm_yday, date.year % 100)
+            self.__download_file(session, product_name, dest)
+        elif product == 'COPG':
+            dest = os.path.join(dest, '%d' % date.year)
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            product_name = '%s%03d0.%02dI.Z' % (product, date.timetuple().tm_yday, date.year % 100)
+            self.__download_file(session, product_name, dest)
+        elif product == 'COD-DCB':
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            session.cwd('%s' % date.year)
+            product_name = 'P1C1%02d%02d.DCB' % (date.year % 100, date.month)
+            self.__download_file(session, product_name, dest, is_uncompress=False)
+            product_name = 'P1P2%02d%02d.DCB' % (date.year % 100, date.month)
+            self.__download_file(session, product_name, dest, is_uncompress=False)
+        elif product == 'CAS-DCB':
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            session.cwd('%s' % date.year)
+            product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (date.year, date.timetuple().tm_yday)
+            self.__download_file(session, product_name, dest)
+            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, True)
+        elif product == 'brdm':
+            dest = os.path.join(dest, '%d' % date.year)
+            if not os.path.isdir(dest):
+                os.makedirs(dest)
+            session.cwd('%s/brdm' % date.year)
+            product_name = '%s%03d0.%02dp.Z' % (product, date.timetuple().tm_yday, date.year % 100)
+            self.__download_file(session, product_name, dest)
         session.quit()
+        print('success')
 
-    def __download(self, session, filename, dest):
+    @staticmethod
+    def __download_file(session, product_name, dest, is_uncompress=True, is_delete=True):
         """Download file."""
-        filepath = os.path.join(dest, filename)
-        session.retrbinary('RETR %s' % filename, open(filepath, 'wb').write)
-        if filename.endswith('.Z'):
-            destpath = filepath.replace('.Z', '')
-            self.__uncompress(filepath, destpath)
-
-    def __uncompress(self, filepath, destpath):
-        """Uncompress Z file."""
-        with open(filepath, 'rb') as f:
-            compressed_data = f.read()
-            uncompressed_data = unlzw.unlzw(compressed_data)
-            with open(destpath, 'w') as fw:
-                fw.write(uncompressed_data)
-
-    def __getweek(self, days):
-        """Get gps week and weekday."""
-        # gps week and weekday
-        date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
-        seconds = (date - GPST0).total_seconds()
-        week = int(seconds / 86400 / 7)
-        weekday = int(seconds % (86400 * 7) / 86400)
-        return week, weekday
-
-
-def process():
-    downloader = Download()
-    if not downloader.init():
-        return
-    downloader.download()
+        file_path = os.path.join(dest, product_name)
+        if product_name not in session.nlst():
+            return
+        session.retrbinary('RETR %s' % product_name, open(file_path, 'wb').write)
+        if is_uncompress:
+            uncompress(file_path, is_delete=is_delete)
 
 
 if __name__ == '__main__':
-    process()
+    config_path = os.path.join(os.path.dirname(__file__), 'configure.ini')
+    fin = open(config_path, 'r')
+    file_lines = fin.readlines()
+    fin.close()
+    for i in range(0, 7):
+        if i == 3:
+            date = datetime.datetime.utcnow()
+        else:
+            date = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+        file_lines[i * 6 + 3] = 'date = ' + date.strftime('%Y%m%d') + '\n'
+    fou = open(config_path, 'w')
+    fou.writelines(file_lines)
+    fou.close()
+
+    downloader = DownloadFTP(config_path)
+    downloader.download()
