@@ -8,6 +8,7 @@ import datetime
 import unlzw
 import gzip
 import extractDCBFromSNX
+import shutil
 
 GPST0 = datetime.datetime(1980, 1, 6, 0, 0, 0)
 
@@ -37,6 +38,17 @@ def uncompress(file_path, dest_path='', is_delete=False):
         fw.write(uncompressed_data.decode(encoding="utf-8"))
     if is_delete:
         os.remove(file_path)
+
+
+def copy_file(srcfile, dstfile):
+    if not os.path.isfile(srcfile):
+        print("%s not exist!" % srcfile)
+    else:
+        fpath, fname = os.path.split(dstfile)  # 分离文件名和路径
+        if not os.path.exists(fpath):
+            os.makedirs(fpath)  # 创建路径
+        shutil.copyfile(srcfile, dstfile)  # 复制文件
+        print("copy %s -> %s" % (srcfile, dstfile))
 
 
 class DownloadFTP(object):
@@ -114,7 +126,14 @@ class DownloadFTP(object):
             session.cwd('%s' % date.year)
             product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (date.year, date.timetuple().tm_yday)
             self.__download_file(session, product_name, dest)
-            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, True)
+            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, False)
+            extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''),
+                                                os.path.split(dest)[0], True)
+            for i in ['C1', 'P2', 'P3']:
+                old_file = os.path.join(os.path.split(dest)[0],
+                                        'P1%s%02d%02d%02d.DCB' % (i, date.year % 100, date.month, date.day))
+                new_file = os.path.join(os.path.split(dest)[0], 'P1%s%02d%02d.DCB' % (i, date.year % 100, date.month))
+                os.rename(old_file, new_file)
         elif product == 'brdm':
             dest = os.path.join(dest, '%d' % date.year)
             if not os.path.isdir(dest):
