@@ -46,7 +46,6 @@ def extractDCBFromSNX(filePath, outPath, deleteOldFile):
     if filePath.endswith('.BSX'):
         cmnTime = datetime.datetime.strptime(filePath[-27:-20], '%Y%j')
         fp = open(filePath, "r", encoding='UTF-8')
-        print(filePath)
 
         p1c1Path = outPath + '\P1C1' + cmnTime.strftime("%y%m%d") + '.DCB'
         fp1c1 = open(p1c1Path, 'w')

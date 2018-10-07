@@ -48,7 +48,7 @@ def copy_file(srcfile, dstfile):
         if not os.path.exists(fpath):
             os.makedirs(fpath)  # 创建路径
         shutil.copyfile(srcfile, dstfile)  # 复制文件
-        print("copy %s -> %s" % (srcfile, dstfile))
+        # print("copy %s -> %s" % (srcfile, dstfile))
 
 
 class DownloadFTP(object):
@@ -128,7 +128,7 @@ class DownloadFTP(object):
             self.__download_file(session, product_name, dest)
             extractDCBFromSNX.extractDCBFromSNX(os.path.join(dest, product_name).replace('.gz', ''), dest, True)
             for i in ['C1', 'P2', 'P3']:
-                old_file = os.path.join(dest,'P1%s%02d%02d%02d.DCB' % (i, date.year % 100, date.month, date.day))
+                old_file = os.path.join(dest, 'P1%s%02d%02d%02d.DCB' % (i, date.year % 100, date.month, date.day))
                 new_file = os.path.join(os.path.split(dest)[0], 'P1%s%02d%02d.DCB' % (i, date.year % 100, date.month))
                 copy_file(old_file, new_file)
         elif product == 'brdm':
