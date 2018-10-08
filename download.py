@@ -75,8 +75,13 @@ class DownloadFTP(object):
         if flag is False:
             return
         print('%s downloading...' % product)
+        mode = cfg['mode']
+        if mode == 'auto':
+            date = datetime.datetime.utcnow() - datetime.timedelta(days=int(cfg['delay']))
+        elif mode == 'hand':
+            date = datetime.datetime.strptime(cfg['date'], '%Y%m%d')
         ftp = cfg['ftp']
-        date = datetime.datetime.strptime(cfg['date'], '%Y%m%d')
+
         dest = cfg['dir']
 
         # parse ftp
@@ -154,18 +159,5 @@ class DownloadFTP(object):
 
 if __name__ == '__main__':
     config_path = os.path.join(os.path.dirname(__file__), 'configure.ini')
-    fin = open(config_path, 'r')
-    file_lines = fin.readlines()
-    fin.close()
-    for i in range(0, 7):
-        if i == 3:
-            date = datetime.datetime.utcnow()
-        else:
-            date = datetime.datetime.utcnow() - datetime.timedelta(days=7)
-        file_lines[i * 6 + 3] = 'date = ' + date.strftime('%Y%m%d') + '\n'
-    fou = open(config_path, 'w')
-    fou.writelines(file_lines)
-    fou.close()
-
     downloader = DownloadFTP(config_path)
     downloader.download()
