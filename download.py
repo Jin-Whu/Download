@@ -51,7 +51,7 @@ def copy_file(srcfile, dstfile):
         # print("copy %s -> %s" % (srcfile, dstfile))
 
 
-class ConfigFTP(object):
+class Config(object):
     def __init__(self, config_path):
         try:
             f = open(config_path)
@@ -85,7 +85,7 @@ class ConfigFTP(object):
         return True
 
 
-class SessionFTP(object):
+class Session(object):
     def __init__(self):
         self.path = None
         self.host = None
@@ -112,8 +112,8 @@ class SessionFTP(object):
 class DownloadFTP(object):
     def __init__(self, config_path):
         if config_path != '':
-            self.configFTP = ConfigFTP(config_path)
-        self.sessionFTP = SessionFTP()
+            self.configFTP = Config(config_path)
+        self.sessionFTP = Session()
 
     def download(self):
         """Download."""
@@ -201,5 +201,5 @@ class DownloadFTP(object):
 
 if __name__ == '__main__':
     config_path = os.path.join(os.path.dirname(__file__), 'configure.ini')
-    downloader = DownloadFTP(config_path)
-    downloader.download()
+    downloaderFTP = DownloadFTP(config_path)
+    downloaderFTP.download()
