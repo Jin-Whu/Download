@@ -9,6 +9,7 @@ import unlzw
 import gzip
 import extractDCBFromSNX
 import shutil
+import time
 
 GPST0 = datetime.datetime(1980, 1, 6, 0, 0, 0)
 
@@ -203,12 +204,14 @@ class DownloadFTP(object):
         if product_name not in session.nlst():
             return
         try_num = self.configFTP.max_try_num
-        while try_num <= 0:
+        while try_num > 0:
             try:
                 session.retrbinary('RETR %s' % product_name, open(file_path, 'wb').write)
             except TimeoutError:
                 try_num -= 1
-                print('try again: %s'%product_name)
+                time.sleep(5)
+                print('slpeep 5s')
+                print('try again: %s' % product_name)
             else:
                 print('%s done' % product_name)
                 break
