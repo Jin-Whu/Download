@@ -64,6 +64,7 @@ class Config(object):
         self._config = configparser.ConfigParser()
         self._config.read(self.__config_path)
         self.current_date = GPST0
+        self.max_try_num = 20
 
     def read_config_part(self, product):
         self.product = product
@@ -75,7 +76,8 @@ class Config(object):
         if self.mode == 'auto':
             self.delay = int(cfg['delay'])
             self.start_date = datetime.datetime.utcnow() - datetime.timedelta(days=self.delay)
-            self.start_date = datetime.datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0, 0)
+            self.start_date = datetime.datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0,
+                                                0)
             self.end_date = self.end_date
         elif self.mode == 'hand':
             self.start_date = datetime.datetime.strptime(cfg['start_date'], '%Y%m%d')
@@ -146,22 +148,26 @@ class DownloadFTP(object):
                     os.makedirs(dest)
                 self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
                 product_name = '%s%03d0.%02dI.Z' % (
-                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday, self.configFTP.current_date.year % 100)
+                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
+                    self.configFTP.current_date.year % 100)
                 self._download_file(self.sessionFTP.session, product_name, dest)
             elif self.configFTP.product == 'COPG':
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
                     os.makedirs(dest)
                 product_name = '%s%03d0.%02dI.Z' % (
-                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday, self.configFTP.current_date.year % 100)
+                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
+                    self.configFTP.current_date.year % 100)
                 self._download_file(self.sessionFTP.session, product_name, dest)
             elif self.configFTP.product == 'COD-DCB':
                 if not os.path.isdir(self.configFTP.dest):
                     os.makedirs(self.configFTP.dest)
-                self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path,self.configFTP.current_date.year))
-                product_name = 'P1C1%02d%02d.DCB' % (self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
+                self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
+                product_name = 'P1C1%02d%02d.DCB' % (
+                    self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
                 self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest, is_uncompress=False)
-                product_name = 'P1P2%02d%02d.DCB' % (self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
+                product_name = 'P1P2%02d%02d.DCB' % (
+                    self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
                 self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest, is_uncompress=False)
             elif self.configFTP.product == 'CAS-DCB':
                 if not os.path.isdir(self.configFTP.dest):
@@ -174,9 +180,11 @@ class DownloadFTP(object):
                                                     self.configFTP.dest, True)
                 for i in ['C1', 'P2', 'P3']:
                     old_file = os.path.join(self.configFTP.dest, 'P1%s%02d%02d%02d.DCB' % (
-                        i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month, self.configFTP.current_date.day))
+                        i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month,
+                        self.configFTP.current_date.day))
                     new_file = os.path.join(os.path.split(self.configFTP.dest)[0],
-                                            'P1%s%02d%02d.DCB' % (i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month))
+                                            'P1%s%02d%02d.DCB' % (i, self.configFTP.current_date.year % 100,
+                                                                  self.configFTP.current_date.month))
                     copy_file(old_file, new_file)
             elif self.configFTP.product == 'brdm':
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
@@ -184,17 +192,26 @@ class DownloadFTP(object):
                     os.makedirs(dest)
                 self.sessionFTP.session.cwd('%s/%d/brdm' % (self.sessionFTP.path, self.configFTP.current_date.year))
                 product_name = '%s%03d0.%02dp.Z' % (
-                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday, self.configFTP.current_date.year % 100)
+                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
+                    self.configFTP.current_date.year % 100)
                 self._download_file(self.sessionFTP.session, product_name, dest)
             self.configFTP.current_date += datetime.timedelta(days=1)
 
-    @staticmethod
-    def _download_file(session, product_name, dest, is_uncompress=True, is_delete=True):
+    def _download_file(self, session, product_name, dest, is_uncompress=True, is_delete=True):
         """Download file."""
         file_path = os.path.join(dest, product_name)
         if product_name not in session.nlst():
             return
-        session.retrbinary('RETR %s' % product_name, open(file_path, 'wb').write)
+        try_num = self.configFTP.max_try_num
+        while try_num <= 0:
+            try:
+                session.retrbinary('RETR %s' % product_name, open(file_path, 'wb').write)
+            except TimeoutError:
+                try_num -= 1
+                print('try again: %s'%product_name)
+            else:
+                print('%s done' % product_name)
+                break
         if is_uncompress:
             uncompress(file_path, is_delete=is_delete)
 
