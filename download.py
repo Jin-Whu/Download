@@ -121,9 +121,7 @@ class DownloadFTP(object):
                 os.makedirs(self.config.dest)
             week, weekday = get_gps_weekday(self.config.date)
             product_name = 'gbm%s%s.%s.Z' % (week, weekday, self.config.product)
-            a = 1
             self.session.cwd('%d' % week)
-            a = 1
             self._download_file(self.session, product_name, self.config.dest)
         elif self.config.product == 'CODG':
             dest = os.path.join(self.config.dest, '%d' % self.config.date.year)
@@ -155,14 +153,18 @@ class DownloadFTP(object):
             product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (
                 self.config.date.year, self.config.date.timetuple().tm_yday)
             self._download_file(self.session, product_name, self.config.dest)
-            extractDCBFromSNX.extractDCBFromSNX(os.path.join(self.config.dest, product_name).replace('.gz', ''),
-                                                self.config.dest, True)
-            for i in ['C1', 'P2', 'P3']:
-                old_file = os.path.join(self.config.dest, 'P1%s%02d%02d%02d.DCB' % (
-                    i, self.config.date.year % 100, self.config.date.month, self.config.date.day))
-                new_file = os.path.join(os.path.split(self.config.dest)[0],
-                                        'P1%s%02d%02d.DCB' % (i, self.config.date.year % 100, self.config.date.month))
-                copy_file(old_file, new_file)
+            try:
+                extractDCBFromSNX.extractDCBFromSNX(os.path.join(self.config.dest, product_name).replace('.gz', ''),
+                                                    self.config.dest, True)
+            except FileNotFoundError:
+                print('No such file: %s' % os.path.join(self.config.dest, product_name).replace('.gz', ''))
+            else:
+                for i in ['C1', 'P2', 'P3']:
+                    old_file = os.path.join(self.config.dest, 'P1%s%02d%02d%02d.DCB' % (
+                        i, self.config.date.year % 100, self.config.date.month, self.config.date.day))
+                    new_file = os.path.join(os.path.split(self.config.dest)[0],
+                                            'P1%s%02d%02d.DCB' % (i, self.config.date.year % 100, self.config.date.month))
+                    copy_file(old_file, new_file)
         elif self.config.product == 'brdm':
             self.config.dest = os.path.join(self.config.dest, '%d' % self.config.date.year)
             if not os.path.isdir(self.config.dest):
