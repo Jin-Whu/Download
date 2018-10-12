@@ -79,7 +79,7 @@ class Config(object):
             self.start_date = datetime.datetime.utcnow() - datetime.timedelta(days=self.delay)
             self.start_date = datetime.datetime(self.start_date.year, self.start_date.month, self.start_date.day, 0, 0,
                                                 0)
-            self.end_date = self.end_date
+            self.end_date = self.start_date
         elif self.mode == 'hand':
             self.start_date = datetime.datetime.strptime(cfg['start_date'], '%Y%m%d')
             self.end_date = datetime.datetime.strptime(cfg['end_date'], '%Y%m%d')
