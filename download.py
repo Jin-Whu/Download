@@ -21,6 +21,16 @@ def get_gps_weekday(date):
     return week, weekday
 
 
+def is_file_exist(file_path):
+    try:
+        f = open(file_path)
+        f.close()
+        return True
+    except IOError:
+        print("file is not accessible.")
+        return False
+
+
 def uncompress(file_path, dest_path='', is_delete=False):
     """Uncompress file."""
     if file_path.endswith('.gz'):
@@ -54,11 +64,7 @@ def copy_file(srcfile, dstfile):
 
 class Config(object):
     def __init__(self, config_path):
-        try:
-            f = open(config_path)
-            f.close()
-        except IOError:
-            print("File is not accessible.")
+        if not is_file_exist(config_path):
             exit()
 
         self.__config_path = config_path
@@ -70,6 +76,9 @@ class Config(object):
     def read_config_part(self, product):
         self.product = product
         cfg = self._config[product]
+        if product == 'ctrl':
+            pass
+            return True
         self.flag = bool(int(cfg['download']))
         if self.flag is False:
             return False
@@ -126,8 +135,8 @@ class DownloadFTP(object):
                 self.sessionFTP.login_ftp(self.configFTP.ftp)
                 try:
                     self._download_product()
-                except FileNotFoundError:
-                    print('file not found')
+                except IOError:
+                    print("file is not accessible.")
                 else:
                     print('success')
                 self.sessionFTP.quit_ftp()
@@ -221,5 +230,5 @@ class DownloadFTP(object):
 
 if __name__ == '__main__':
     config_path = os.path.join(os.path.dirname(__file__), 'configure.ini')
-    downloaderFTP = DownloadFTP(config_path)
-    downloaderFTP.download()
+    downloader = DownloadFTP(config_path)
+    downloader.download()
