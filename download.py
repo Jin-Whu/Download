@@ -144,7 +144,7 @@ class DownloadFTP(object):
     def _download_product(self):
         self.configFTP.current_date = self.configFTP.start_date
         while self.configFTP.current_date <= self.configFTP.end_date:
-            if self.configFTP.product == 'sp3' or self.configFTP.product == 'clk':
+            if self.configFTP.product in ['sp3', 'clk']:
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
                     os.makedirs(dest)
@@ -152,51 +152,43 @@ class DownloadFTP(object):
                 product_name = 'gbm%s%s.%s.Z' % (week, weekday, self.configFTP.product)
                 self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, week))
                 self._download_file(self.sessionFTP.session, product_name, dest)
-            elif self.configFTP.product == 'CODG':
+            elif self.configFTP.product in ['CODG', 'COPG']:
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
                     os.makedirs(dest)
-                self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
+                if self.configFTP.product == 'CODG':
+                    self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
                 product_name = '%s%03d0.%02dI.Z' % (
                     self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
                     self.configFTP.current_date.year % 100)
                 self._download_file(self.sessionFTP.session, product_name, dest)
-            elif self.configFTP.product == 'COPG':
-                dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
-                if not os.path.isdir(dest):
-                    os.makedirs(dest)
-                product_name = '%s%03d0.%02dI.Z' % (
-                    self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
-                    self.configFTP.current_date.year % 100)
-                self._download_file(self.sessionFTP.session, product_name, dest)
-            elif self.configFTP.product == 'COD-DCB':
+            elif self.configFTP.product in ['COD-DCB', 'CAS-DCB']:
                 if not os.path.isdir(self.configFTP.dest):
                     os.makedirs(self.configFTP.dest)
                 self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
-                product_name = 'P1C1%02d%02d.DCB' % (
-                    self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
-                self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest, is_uncompress=False)
-                product_name = 'P1P2%02d%02d.DCB' % (
-                    self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
-                self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest, is_uncompress=False)
-            elif self.configFTP.product == 'CAS-DCB':
-                if not os.path.isdir(self.configFTP.dest):
-                    os.makedirs(self.configFTP.dest)
-                self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
-                product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (
-                    self.configFTP.current_date.year, self.configFTP.current_date.timetuple().tm_yday)
-                self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest)
-                extractDCBFromSNX.extractDCBFromSNX(os.path.join(self.configFTP.dest, product_name).replace('.gz', ''),
-                                                    self.configFTP.dest, True)
-                for i in ['C1', 'P2', 'P3']:
-                    old_file = os.path.join(self.configFTP.dest, 'P1%s%02d%02d%02d.DCB' % (
-                        i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month,
-                        self.configFTP.current_date.day))
-                    new_file = os.path.join(os.path.split(self.configFTP.dest)[0],
-                                            'P1%s%02d%02d.DCB' % (i, self.configFTP.current_date.year % 100,
-                                                                  self.configFTP.current_date.month))
-                    copy_file(old_file, new_file)
-            elif self.configFTP.product == 'brdm':
+
+                if self.configFTP.product == 'CAS-DCB':
+                    product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (
+                        self.configFTP.current_date.year, self.configFTP.current_date.timetuple().tm_yday)
+                    self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest)
+                    extractDCBFromSNX.extractDCBFromSNX(
+                        os.path.join(self.configFTP.dest, product_name).replace('.gz', ''),
+                        self.configFTP.dest, True)
+                    for i in ['C1', 'P2', 'P3']:
+                        old_file = os.path.join(self.configFTP.dest, 'P1%s%02d%02d%02d.DCB' % (
+                            i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month,
+                            self.configFTP.current_date.day))
+                        new_file = os.path.join(os.path.split(self.configFTP.dest)[0],
+                                                'P1%s%02d%02d.DCB' % (i, self.configFTP.current_date.year % 100,
+                                                                      self.configFTP.current_date.month))
+                        copy_file(old_file, new_file)
+                elif self.configFTP.product == 'COD-DCB':
+                    for i in ['C1', 'P2']:
+                        product_name = 'P1%s%02d%02d.DCB' % (
+                            i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
+                        self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest,
+                                            is_uncompress=False)
+            elif self.configFTP.product in ['brdm']:
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
                     os.makedirs(dest)
