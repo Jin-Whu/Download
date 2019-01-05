@@ -72,6 +72,7 @@ class Config(object):
         self._config.read(self.__config_path)
         self.current_date = GPST0
         self.max_try_num = 20
+        self.sleep_second = 7
 
     def read_config_part(self, product):
         self.product = product
@@ -133,12 +134,7 @@ class DownloadFTP(object):
             if self.configFTP.read_config_part(prodcut):
                 print('%s downloading......' % self.configFTP.product)
                 self.sessionFTP.login_ftp(self.configFTP.ftp)
-                try:
-                    self._download_product()
-                except IOError:
-                    print("file is not accessible.")
-                else:
-                    print('success')
+                self._download_product()
                 self.sessionFTP.quit_ftp()
 
     def _download_product(self):
@@ -156,8 +152,7 @@ class DownloadFTP(object):
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
                     os.makedirs(dest)
-                if self.configFTP.product == 'CODG':
-                    self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
+                self.sessionFTP.session.cwd('%s/%d' % (self.sessionFTP.path, self.configFTP.current_date.year))
                 product_name = '%s%03d0.%02dI.Z' % (
                     self.configFTP.product, self.configFTP.current_date.timetuple().tm_yday,
                     self.configFTP.current_date.year % 100)
@@ -171,6 +166,9 @@ class DownloadFTP(object):
                     product_name = 'CAS0MGXRAP_%d%03d0000_01D_01D_DCB.BSX.gz' % (
                         self.configFTP.current_date.year, self.configFTP.current_date.timetuple().tm_yday)
                     self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest)
+                    if not os.path.isfile(os.path.join(self.configFTP.dest, product_name).replace('.gz', '')):
+                        self.configFTP.current_date += datetime.timedelta(days=1)
+                        continue
                     extractDCBFromSNX.extractDCBFromSNX(
                         os.path.join(self.configFTP.dest, product_name).replace('.gz', ''),
                         self.configFTP.dest, True)
@@ -184,10 +182,10 @@ class DownloadFTP(object):
                         copy_file(old_file, new_file)
                 elif self.configFTP.product == 'COD-DCB':
                     for i in ['C1', 'P2']:
-                        product_name = 'P1%s%02d%02d.DCB' % (
+                        product_name = 'P1%s%02d%02d.DCB.Z' % (
                             i, self.configFTP.current_date.year % 100, self.configFTP.current_date.month)
                         self._download_file(self.sessionFTP.session, product_name, self.configFTP.dest,
-                                            is_uncompress=False)
+                                            is_uncompress=True)
             elif self.configFTP.product in ['brdm']:
                 dest = os.path.join(self.configFTP.dest, '%d' % self.configFTP.current_date.year)
                 if not os.path.isdir(dest):
@@ -203,21 +201,24 @@ class DownloadFTP(object):
         """Download file."""
         file_path = os.path.join(dest, product_name)
         if product_name not in session.nlst():
+            print('%s do not exist' % product_name)
             return
         try_num = self.configFTP.max_try_num
+        print('try to download %s' % product_name)
         while try_num > 0:
             try:
                 session.retrbinary('RETR %s' % product_name, open(file_path, 'wb').write)
-            except TimeoutError:
+            except:
                 try_num -= 1
-                time.sleep(5)
-                print('slpeep 5s')
-                print('try again: %s' % product_name)
+                print('  slpeep %ds and try again(NO.%d)' % (self.configFTP.sleep_second,self.configFTP.max_try_num-try_num))
+                time.sleep(self.configFTP.sleep_second)
             else:
-                print('%s done' % product_name)
+                if is_uncompress:
+                    uncompress(file_path, is_delete=is_delete)
+                print('success\n')
                 break
-        if is_uncompress:
-            uncompress(file_path, is_delete=is_delete)
+        else:
+            print('fail\n')
 
 
 if __name__ == '__main__':
